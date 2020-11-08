@@ -1,36 +1,49 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import classNames from 'classnames';
-import { VariableSizeGrid as Grid } from 'react-window';
+import { VariableSizeGrid as Grid, FixedSizeList as List } from 'react-window';
 import ResizeObserver from 'rc-resize-observer';
 import { Table } from 'antd';
+import { PlusCircleOutlined } from '@ant-design/icons';
 
 const columns = [
   {
     title: "A",
     dataIndex: "key",
-    width: 35,
+    width: 50,
+    align: "center",
+    ellipsis: true,
   },
   {
     title: "B",
     dataIndex: "key",
     width: 150,
+    align: "center",
+    ellipsis: true,
   },
   {
     title: "C",
     dataIndex: "key",
+    align: "center",
+    ellipsis: true,
   },
   {
     title: "D",
     dataIndex: "key",
+    align: "center",
+    ellipsis: true,
   },
   {
     title: "E",
     dataIndex: "key",
+    align: "center",
+    ellipsis: true,
   },
   {
     title: "F",
     dataIndex: "key",
+    align: "center",
+    ellipsis: true,
   },
 ];
 
@@ -38,25 +51,28 @@ const data = Array.from(
   {
     length: 1000,
   },
-  (_, key) => ({
+  (_, key, description) => ({
     key,
+    description: key % 2 === 0 ? 'Data' : 'No data',
   })
 );
 
 function DataTable() {
-  const gridRef = useRef();
-
   const [TableWidth, setTableWidth] = useState(0);
-
   const widthColumnCount = columns.filter(({ width }) => !width).length;
+  // 컬럼 너비 계산 ---------------------
+  let hasAlreadyWidth = 0;
   const mergedColumns = columns.map((column) => {
     if (column.width) {
+      hasAlreadyWidth += column.width;
       return column;
     }
-
-    return { ...column, width: Math.floor(TableWidth / widthColumnCount) };
+    
+    return { ...column, width: Math.floor((TableWidth - hasAlreadyWidth) / widthColumnCount) };
   });
-
+  // -----------------------------------
+  
+  const gridRef = useRef();
   const [connectObject] = useState(() => {
     const obj = {};
     Object.defineProperty(obj, "scrollLeft", {
@@ -79,24 +95,39 @@ function DataTable() {
     });
   };
 
-  useEffect(() => [TableWidth]);
+  useEffect(() => resetVirtualGrid, [TableWidth]);
 
   const renderVirtualList = (data, { scrollbarSize, ref, onScroll }) => {
-    const totalHeight = data.length * 30;
+    ref.current = connectObject;
+    const totalHeight = data.length * 45;
     return (
       <Grid
+        ref={gridRef}
         className="virtual-grid"
         columnCount={mergedColumns.length}
-        columnWidth={(index) => mergedColumns[index].width}
+        columnWidth={(index) => {
+          const { width } = mergedColumns[index];
+          return totalHeight > 300 && index === mergedColumns.length - 1
+            ? width - (parseInt(scrollbarSize) === 0 ? 17 : parseInt(scrollbarSize))
+            : width;
+        }}
         rowCount={data.length}
-        rowHeight={() => 30}
+        rowHeight={() => 45}
         width={TableWidth}
         height={300}
       >
         {({ columnIndex, rowIndex, style }) => (
           <div
-            style={style}
+            className={classNames('virtual-table-cell', {
+              'virtual-table-cell-last': columnIndex === mergedColumns.length - 1,
+            })}
+            style={{...style, borderRight: '1px solid red', textAlign: 'center'}}
           >
+            {
+              columnIndex === 1 && data[rowIndex].description === 'Data'
+               ? <PlusCircleOutlined style={{ marginRight: '10px', cursor: 'pointer'}} />
+               : undefined
+            }
             {
               data[rowIndex][mergedColumns[columnIndex].dataIndex]
             }
@@ -106,17 +137,17 @@ function DataTable() {
     );
   };
 
-  const VirtualTable = () => {
+  const VirtualTable = (props) => {
     return (
       <Table
         columns={mergedColumns}
-        dataSource={data}
+        dataSource={props.dataSource}
         pagination={false}
         components={{
           body: renderVirtualList,
         }}
         scroll={{
-          y: 300,
+          y: props.scroll.y,
         }}
       />
     );
@@ -132,11 +163,14 @@ function DataTable() {
       <VirtualTable
         columns={columns}
         dataSource={data}
+        scroll={{
+          y: 300,
+        }}
       />
     </ResizeObserver>
     // <VirtualTable
-    //   columns={columns}
-    //   dataSource={data}
+    // columns={columns}
+    // dataSource={data}
     // />
   );
 }

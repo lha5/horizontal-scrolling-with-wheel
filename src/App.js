@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import SelectBox from './SelectBox';
 import DataGrid from './DataGrid';
 import DataTable from './DataTable';
+import ExpandableDataTable from './ExpandableDataTable';
 
 const Container = styled.div`
   width: 500px;
@@ -77,6 +78,9 @@ function App() {
 
   return (
     <div className="App" style={{ padding: "50px"}}>
+        <ExpandableDataTable />
+        <br />
+        <br />
         <Container id="handling">
           Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
           sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
@@ -95,8 +99,6 @@ function App() {
         <SelectBox />
         <br />
         <br />
-        {/* <DataGrid /> */}
-        <DataTable />
     </div>
   );
 }
