@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import 'antd/dist/antd.css';
 import styled from 'styled-components';
 import SelectBox from './SelectBox';
-import DataGrid from './DataGrid';
-import DataTable from './DataTable';
-import ExpandableDataTable from './ExpandableDataTable';
+import TestTable from './TestTable'
 
 const Container = styled.div`
   width: 500px;
@@ -78,7 +76,7 @@ function App() {
 
   return (
     <div className="App" style={{ padding: "50px"}}>
-        <ExpandableDataTable />
+        <TestTable />
         <br />
         <br />
         <Container id="handling">
