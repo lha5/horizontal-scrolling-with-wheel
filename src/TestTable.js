@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
 import { 
   useTable,
@@ -9,35 +9,70 @@ import {
   state,
   visibleColumns,
   useExpanded,
+  usePagination,
 } from "react-table";
 import { matchSorter } from 'match-sorter';
 
-import Data from "./Data";
+import TestData from "./TestData";
 
 const StyledTable = styled.div`
-  padding: 20px;
+  // padding: 20px;
+  display: block;
+  max-width: 100%;
 
-  table {
-    border-spacing: 0;
-    border: 1px solid #000000;
+  /* This will make the table scrollable when it gets too small */
+  .tableWrap {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid black;
 
-    tr {
-      :last-child {
-        td {
-          border-bottom: 0;
+    table {
+      width: 100%;
+      border-spacing: 0;
+      border: 1px solid #000000;
+  
+      tr {
+        :last-child {
+          td {
+            border-bottom: 0;
+          }
         }
       }
-    }
-    th, td {
-      margin: 0;
-      padding: 0.5rem;
-      border-bottom: 1px solid black;
-      border-right: 1px solid black;
 
-      :last-child {
-        border-right: 0;
+      thead>tr>th:nth-child(1) {
+        width: 32px;
       }
-    }
+
+      thead>tr>th:nth-child(2) {
+        width: 20px;
+      }
+
+      th, td {
+        margin: 0;
+        padding: 0.5rem;
+        border-bottom: 1px solid black;
+        border-right: 1px solid black;
+  
+        /* The secret sauce */
+        /* Each cell should grow equally */
+        // width: 1%;
+        /* But "collapsed" cells should be as small as possible */
+        &.collapse {
+          width: 0.0000000001%;
+        }
+  
+        :last-child {
+          border-right: 0;
+        }
+      }
+  }
+
+  }
+
+  .pagination {
+    padding: 10px;
   }
 `;
 
@@ -75,7 +110,7 @@ function DefaultColumnFilter({
       onChange={event => {
         setFilter(event.target.value || undefined)
       }}
-      placeholde={`${count}개 레코드 검색...`}
+      placeholder={`${count}개 레코드 검색...`}
     />
   );
 }
@@ -196,7 +231,14 @@ function fuzzyTextFilterFunction(rows, id, filterValue) {
 
 fuzzyTextFilterFunction.autoRemove = value => !value;
 
-function Table({ columns, data, renderRowSubComponent }) {
+function Table({
+  columns,
+  data,
+  renderRowSubComponent,
+  fetchData,
+  loading,
+  pageCount: controlledPageCount, 
+}) {
 
   const filterTypes = useMemo(() => ({
     fuzzyText: fuzzyTextFilterFunction,
@@ -224,82 +266,156 @@ function Table({ columns, data, renderRowSubComponent }) {
     visibleColumns,
     preGlobalFilteredRows,
     setGlobalFilter,
+    page,
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    state: { pageIndex, pageSize },
   } = useTable({
     columns,
     data,
-    defaultColumn,
-    filterTypes,
-  }, useFilters, useGlobalFilter, useSortBy, useExpanded);
+    // defaultColumn,
+    // filterTypes,
+    initialState: { pageIndex: 0 },
+    manualPagination: true,
+    pageCount: controlledPageCount,
+  }, useFilters, useGlobalFilter, useSortBy, useExpanded, usePagination);
+
+  useEffect(() => {
+    fetchData({pageIndex, pageSize});
+  }, [fetchData, pageIndex, pageSize]);
 
   return (
-    <table {...getTableProps()}>
-      <thead>
-        <tr>
-          <th
-          colSpan={visibleColumns.length}
-          style={{ textAlign: 'left' }}
-          >
-            <GlobalFilter
-              preGlobalFilteredRows={preGlobalFilteredRows}
-              globalFilter={state.globalFilter}
-              setGlobalFilter={setGlobalFilter}
-            />
-          </th>
-        </tr>
-        {
-          headerGroups.map(headerGroup => (
-            <tr {...headerGroup.getHeaderGroupProps()}>
-              {
-                headerGroup.headers.map(column => (
-                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                    {column.render('Header')}
-                    <div>
-                      {
-                        column.canFilter ? column.render('Filter') : null
-                      }
-                    </div>
-                    <span>
-                      {
-                        column.isSorted ? 
-                          column.isSortedDesc ? ' ↓' : ' ↑' 
-                          : ''
-                      }
-                    </span>
-                  </th>
-                ))
-              }
-            </tr>
-          ))
-        }
-      </thead>
-      <tbody {...getTableBodyProps()}>
-        {
-          rows.map((row, index) => {
-            prepareRow(row)
-            return (
-              <React.Fragment {...row.getRowProps()}>
-                <tr>
+    <StyledTable>
+      <div className="tableWrap">
+        <table {...getTableProps()}>
+          <thead>
+            {/* <tr>
+              <th
+              colSpan={visibleColumns.length}
+              style={{ textAlign: 'left' }}
+              >
+                <GlobalFilter
+                  preGlobalFilteredRows={preGlobalFilteredRows}
+                  globalFilter={state.globalFilter}
+                  setGlobalFilter={setGlobalFilter}
+                />
+              </th>
+            </tr> */}
+            {
+              headerGroups.map(headerGroup => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
                   {
-                    row.cells.map(cell => {
-                      return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                    })
+                    headerGroup.headers.map(column => (
+                      <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                        {column.render('Header')}
+                        {/* <div>
+                          {
+                            column.canFilter ? column.render('Filter') : null
+                          }
+                        </div> */}
+                        <span>
+                          {
+                            column.isSorted ? 
+                              column.isSortedDesc ? ' ↓' : ' ↑' 
+                              : ''
+                          }
+                        </span>
+                      </th>
+                    ))
                   }
                 </tr>
-                {
-                  row.isExpanded ? (
-                    <tr>
-                      <td colSpan={visibleColumns.length}>
-                        {renderRowSubComponent({ row })}
-                      </td>
+              ))
+            }
+          </thead>
+          <tbody {...getTableBodyProps()}>
+            {
+              page.map((row, index) => {
+                prepareRow(row)
+                return (
+                  <React.Fragment key={index}>
+                    <tr {...row.getRowProps()}>
+                      {
+                        row.cells.map(cell => {
+                          return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                        })
+                      }
                     </tr>
-                  ) : null
-                }
-              </React.Fragment>
-            )
-          })
-        }
-      </tbody>
-    </table>
+                    {
+                      row.isExpanded ? (
+                        <tr>
+                          <td colSpan={visibleColumns.length}>
+                            {renderRowSubComponent({ row })}
+                          </td>
+                        </tr>
+                      ) : null
+                    }
+                  </React.Fragment>
+                )
+              })
+            }
+            <tr>
+              {
+                loading ? (
+                  <td colSpan="1000"> 데이터 불러오는 중 </td>
+                ) : (
+                  null
+                )
+              }
+            </tr>
+          </tbody>
+        </table>
+        <div className="pagination">
+          <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+            {'<<'}
+          </button>{' '}
+          <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+            {'<'}
+          </button>{' '}
+          <button onClick={() => nextPage()} disabled={!canNextPage}>
+            {'>'}
+          </button>{' '}
+          <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
+            {'>>'}
+          </button>{' '}
+          <span>
+            Page{' '}
+            <strong>
+              {pageIndex + 1} of {pageOptions.length}
+            </strong>{' '}
+          </span>
+          <span>
+            | Go to page:{' '}
+            <input
+              type="number"
+              defaultValue={pageIndex + 1}
+              onChange={e => {
+                const page = e.target.value ? Number(e.target.value) - 1 : 0
+                gotoPage(page)
+              }}
+              style={{ width: '50px' }}
+            />
+          </span>{' '}
+          <select
+            value={pageSize}
+            onChange={e => {
+              setPageSize(Number(e.target.value))
+            }}
+          >
+            {[10, 20, 30, 40, 50].map(pageSize => (
+              <option key={pageSize} value={pageSize}>
+                Show {pageSize}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </StyledTable>
   );
 }
 
@@ -315,10 +431,8 @@ filterGreaterThan.autoRemove = val => typeof val !== 'number'
 function TestTable() {
   const columns = useMemo(() => [
     {
-      Header: 'No',
-      accessor: 'key',
-      Filter: SliderColumnFilter,
-      filter: 'equals',
+      Header: 'No.',
+      accessor: 'index',
     },
     {
       Header: () => null,
@@ -330,25 +444,61 @@ function TestTable() {
       ),
     },
     {
-      Header: 'Title',
-      accessor: 'title',
+      Header: '이름',
+      accessor: 'name',
     },
     {
-      Header: 'Content',
-      accessor: 'content',
+      Header: '나이',
+      accessor: 'age',
+    },
+    {
+      Header: '방문수',
+      accessor: 'visits',
+    },
+    {
+      Header: '상태',
+      accessor: 'status',
+    },
+    {
+      Header: '진행 정도',
+      accessor: 'progress',
     },
   ], []);
 
-  const data = useMemo(() => Data, []);
+  const serverData = TestData(100);
 
   const renderRowSubComponent = useCallback(
     ({ row }) => (
       <div style={{ fontSize: '12px' }}>
-        {row.values.key}번째가 열림
+        {row.values.index}번째 열이 펼쳐짐
       </div>
     ),
     [],
   );
+
+  const [data, setData] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(0);
+  const fetchIdRef = React.useRef(0);
+
+  const fetchData = useCallback(({ pageSize, pageIndex }) => {
+    const fetchId = ++fetchIdRef.current;
+
+    setLoading(true);
+    
+    setTimeout(() => {
+      if (fetchId === fetchIdRef.current) {
+        const startRow = pageSize * pageIndex;
+        const endRow = startRow + pageSize;
+
+        setData(serverData.slice(startRow, endRow));
+
+        setPageCount(Math.ceil(serverData.length / pageSize));
+
+        setLoading(false);
+      }
+    }, 1000);
+  }, []);
 
   return (
     <StyledTable>
@@ -356,6 +506,9 @@ function TestTable() {
         columns={columns}
         data={data}
         renderRowSubComponent={renderRowSubComponent}
+        fetchData={fetchData}
+        loading={loading}
+        pageCount={pageCount}
       />
     </StyledTable>
   );
