@@ -1,19 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, forwardRef, createContext, memo } from 'react';
 import styled from 'styled-components';
 import {
   useTable,
   useBlockLayout,
-  usePagination,
   useFilters,
   useSortBy,
-  useGroupBy,
   useExpanded,
 } from 'react-table';
-import matchSorter from 'match-sorter';
-import { FixedSizeList as List } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
+import { VariableSizeList as List } from 'react-window';
 import scrollbarWidth from './scrollbarWidth';
 import TestData from './TestData';
-import { camelCase } from 'lodash';
 
 const Styles = styled.div`
   padding: 1rem;
@@ -56,10 +53,11 @@ function DefaultColumnFilter({
   return (
     <input
       value={filterValue || ''}
+      style={{ width: '120px' }}
       onChange={event => {
         setFilter(event.target.value || undefined)
       }}
-      placeholder={`${count}개 레코드 검색...`}
+      placeholder={`검색...`}
     />
   );
 }
@@ -118,7 +116,7 @@ function SliderColumnFilter({
           setFilter(parseInt(e.target.value, 10))
         }}
       />
-      <button onClick={() => setFilter(undefined)}>Off</button>
+      <button onClick={() => setFilter(undefined)}>초기화</button>
     </>
   );
 }
@@ -207,22 +205,39 @@ function Table({
     rows,
     totalColumnsWidth,
     prepareRow,
-    visibleColumns,
-    state: {sortBy, expanded, filters}
+    state: {sortBy, expanded, filters},
   } = useTable({
     columns,
     data,
     defaultColumn,
     filterTypes,
   }, useBlockLayout, useFilters, useSortBy, useExpanded);
+  
+  const refList = useRef();
+  
+  const [RowHeights, setRowHeights] = useState(new Array(rows.length).fill(true).reduce((acc, item, i) => {
+      acc[i] = 35;
+      return acc;
+    }, {})
+  );
+  
+  const toggleSize = (index) => {
+    if (refList.current) {
+      console.log('>>>> ', refList.current);
+      refList.current.resetAfterIndex(index);
+    }
+    RowHeights[index] === 35 ? setRowHeights(RowHeights[index] = 70) : setRowHeights(RowHeights[index] = 35);
+  };
 
+  const getItemSize = index => RowHeights[index];
+  
   const RenderRow = useCallback(
     ({ index, style }) => {
       const row = rows[index];
       prepareRow(row);
       return (
         <React.Fragment>
-          <div {...row.getRowProps({ style, })} className="tr">
+          <div {...row.getRowProps({ style })} className="tr">
             {
               row.cells.map(cell => {
                 return (
@@ -235,8 +250,8 @@ function Table({
           </div>
           {
             row.isExpanded ? (
-              <div className="tr expanded-row">
-                <div className="td">
+              <div role="row" className="tr expanded-row">
+                <div role="cell" className="td">
                   {renderRowSubComponent({ row })}
                 </div>
               </div>
@@ -248,42 +263,47 @@ function Table({
     [prepareRow, rows]
   );
 
+  const [DetectRows, setDetectRows] = useState(rows.length);
+
+  useEffect(() => {
+    console.log('rows///////// ', rows);
+    // setDetectRows(rows.length + 1);
+  }, [rows]);
+
   return (
     <div {...getTableProps()} className="table">
       <div>
-        {
-          headerGroups.map(headerGroup => (
-            <div {...headerGroup.getHeaderGroupProps()} className="tr">
-              {
-                headerGroup.headers.map(column => (
-                  <div {...column.getHeaderProps()} className="th">
-                    {column.render('Header')}
-                    {
-                      column.canSort ? (
-                        <div {...column.getSortByToggleProps()} style={{ width: '20px', cursor: 'pointer' }}>
-                          {
-                            column.isSorted ? 
-                              (column.isSortedDesc ? ' 🔽' : ' 🔼') 
-                              : 'GO'
-                          }
-                        </div>
-                      ) : null
-                    }
-                    <div>{column.canFilter ? column.render('Filter') : null}</div>
+        {headerGroups.map((headerGroup) => (
+          <div {...headerGroup.getHeaderGroupProps()} className="tr">
+            {headerGroup.headers.map((column) => (
+              <div {...column.getHeaderProps()} className="th">
+                {column.render("Header")}
+                {column.canSort ? (
+                  <div
+                    {...column.getSortByToggleProps()}
+                    style={{ width: "20px", cursor: "pointer" }}
+                  >
+                    {column.isSorted
+                      ? column.isSortedDesc
+                        ? " 🔽"
+                        : " 🔼"
+                      : "GO"}
                   </div>
-                ))
-              }
-            </div>
-          ))
-        }
+                ) : null}
+                <div>{column.canFilter ? column.render("Filter") : null}</div>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
       <div {...getTableBodyProps()}>
         <List
           // ref={refList}
-          height={(35 * 10) - 1} // itemSize * 10열 - border값
-          itemCount={rows.length}
-          itemSize={35}
-          width={totalColumnsWidth+scrollbarSize}
+          height={35 * 10 - 1} // itemSize * 10열 - border값
+          itemCount={DetectRows}
+          itemSize={getItemSize}
+          // itemSize={35}
+          width={totalColumnsWidth + scrollbarSize}
         >
           {RenderRow}
         </List>
@@ -329,18 +349,22 @@ function TestVirtualTable() {
       Header: '이름',
       accessor: 'name',
       width: 150,
+      defaultCanSort: false,
+      disableSortBy: true,
     },
     {
       Header: '나이',
       accessor: 'age',
       Filter: SliderColumnFilter,
       filter: 'equals',
+      width: 170,
     },
     {
       Header: '방문수',
       accessor: 'visits',
       Filter: NumberRangeColumnFilter,
       filter: 'between',
+      width: 170,
     },
     {
       Header: '상태',
@@ -353,11 +377,13 @@ function TestVirtualTable() {
     {
       Header: '진행 정도',
       accessor: 'progress',
-      disableFilters: true,
+      Filter: NumberRangeColumnFilter,
+      filter: 'between',
+      width: 170,
     },
   ], []);
 
-  const data = useMemo(() => TestData(50000), []);
+  const data = useMemo(() => TestData(10), []);
 
   const renderRowSubComponent = useCallback(
     ({ row }) => (

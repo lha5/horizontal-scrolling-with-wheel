@@ -19,31 +19,40 @@ const newData = () => {
     progress: Math.floor(Math.random() * 100),
     status:
     statusChance > 0.66
-    ? 'O'
-    : statusChance > 0.33
-    ? 'X'
-    : '-',
+      ? 'O'
+        : statusChance > 0.33
+          ? 'X'
+      : '-',
   };
 };
 
-export default function TestData(lens) {
+const newList = () => {
+  return {
+    title: namor.generate(),
+    total: Math.floor(Math.random() * 30),
+  }
+};
+
+export default function TestData(...lens) {
   // const makeDataLevel = (depth = 0) => {
-    // const len = lens[depth];
-    // return range(len).map(d => {
-    //   return {
-    //     ...newData(),
-    //     subRows: lens[depth + 1] ? makeDataLevel(depth + 1) : undefined,
-    //   };
-    // });
+  //   const len = lens[depth];
+  //   return range(len).map((data, index) => {
+  //     return {
+  //       index: index,
+  //       ...newData(),
+  //       subRows: lens[depth + 1] ? makeDataLevel(depth + 1) : undefined,
+  //     };
+  //   });
   // };
+
   const makeDataLevel = () => {
     return range(lens).map((data, index) => {
       return {
-        index: index + 1,
+        index: index,
         ...newData(),
       }
     });
   };
-
+  
   return makeDataLevel();
 };
