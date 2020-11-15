@@ -73,6 +73,7 @@ const StyledTable = styled.div`
 
   .pagination {
     padding: 10px;
+    text-align: right;
   }
 `;
 
@@ -322,7 +323,7 @@ function Table({
                         <span>
                           {
                             column.isSorted ? 
-                              column.isSortedDesc ? ' ↓' : ' ↑' 
+                              column.isSortedDesc ? ' 👇' : ' 👆' 
                               : ''
                           }
                         </span>
@@ -433,6 +434,7 @@ function TestTable() {
     {
       Header: 'No.',
       accessor: 'index',
+      sortDescFirst : true,
     },
     {
       Header: () => null,
@@ -509,6 +511,7 @@ function TestTable() {
         fetchData={fetchData}
         loading={loading}
         pageCount={pageCount}
+        disableMultiSort={false}
       />
     </StyledTable>
   );

@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import 'antd/dist/antd.css';
 import styled from 'styled-components';
-import SelectBox from './SelectBox';
-import TestTable from './TestTable'
+
+import TestVirtualTable from './TestVirtualTable';
 
 const Container = styled.div`
   width: 500px;
@@ -52,16 +52,16 @@ const SubMenu = styled.div`
   width: 250px;
   height: 0;
   background-color: yellow;
-
+  
   &:hover {
     height: 80px;
   }
-`;
-const Test = styled.div`
+  `;
+  const Test = styled.div`
   width: 250px;
   height: 250px;
   border: 1px solid gray;
-`;
+  `;
 
 function App() {
   useEffect(() => {
@@ -74,9 +74,11 @@ function App() {
     document.querySelector('#handling').addEventListener('wheel', horizontally);
   }, []);
 
+  
+
   return (
     <div className="App" style={{ padding: "50px"}}>
-        <TestTable />
+        <TestVirtualTable />
         <br />
         <br />
         <Container id="handling">
@@ -89,12 +91,12 @@ function App() {
         </Container>
         <br />
         <br />
-        <Item className="item">Mouse Over Me</Item>
+        {/* <Item className="item">Mouse Over Me</Item>
         <SubMenu className="submenu" />
-        <Test />
+        <Test /> */}
         <br />
         <br />
-        <SelectBox />
+        {/* <SelectBox /> */}
         <br />
         <br />
     </div>
