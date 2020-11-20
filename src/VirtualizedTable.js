@@ -8,8 +8,9 @@ import {
   useExpanded,
 } from 'react-table';
 import { FixedSizeList, VariableSizeList } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 import scrollbarWidth from './scrollbarWidth';
-import { AutoSizer, CellMeasurer, CellMeasurerCache, List as VirtualizedList } from 'react-virtualized';
+import { CellMeasurer, CellMeasurerCache, List as VirtualizedList } from 'react-virtualized';
 
 import TestData from './TestData';
 
@@ -25,12 +26,10 @@ const Styles = styled.div`
     .tr {
       :last-child {
         .td {
-          border-bottom: 0;
+          // border-bottom: 0;
+          border-bottom: 1px solid #000000;
         }
       }
-    }
-    .expanded-row {
-      text-align: left;
     }
     .th, .td {
       margin: 0;
@@ -213,7 +212,6 @@ function Table({
     rows,
     totalColumnsWidth,
     prepareRow,
-    visibleColumns,
     state: {sortBy, expanded, filters},
   } = useTable({
     columns,
@@ -242,24 +240,31 @@ function Table({
         <React.Fragment>
           <div {...row.getRowProps({ style })} className="tr">
             {
-              row.cells.map(cell => {
-                return (
-                  <div {...cell.getCellProps()} className="td">
-                    {cell.render('Cell')}
-                  </div>
-                )
-              })
+              row.canExpand ? (
+                row.cells.map(cell => {
+                  return (
+                    <div {...cell.getCellProps()} className="td">
+                      {cell.render('Cell')}
+                    </div>
+                  )
+                })
+              )
+              : (
+                <div className="td" style={{ width: '100%', padding: '0', margin: '0' }}>
+                  {renderRowSubComponent({ row })}
+                </div>
+              )
             }
           </div>
-          {
+          {/* {
             row.isExpanded ? (
-              <div role="row" className="tr expanded-row">
-                <div role="cell" className="td">
+              <div className="tr expanded-row">
+                <div className="td">
                   {renderRowSubComponent({ row })}
                 </div>
               </div>
             ) : null
-          }
+          } */}
         </React.Fragment>
       )
     },
@@ -271,15 +276,11 @@ function Table({
     const row = rows[index];
     prepareRow(row);
     return (
-      <React.Fragment>
+      <>
         <div
-          {...row.getRowProps({ style })}
-          className='tr'
-          style={{
-            backgroundColor: 'lavender',
-            whiteSpace: 'nowrap',
-          }}
-        >
+            {...row.getRowProps()}
+            className='tr'
+          >
           {row.cells.map((cell) => {
             return (
               <div {...cell.getCellProps()} className='td'>
@@ -290,22 +291,21 @@ function Table({
         </div>
         {
           row.isExpanded ? (
-            <div role="row" className="tr expanded-row">
-              <div role="cell" className="td" colSpan={visibleColumns.length}>
+            <div role="row" className="tr">
+              <div role="cell" className="td" style={{ backgroundColor: 'lightpink' }}>
                 {renderRowSubComponent({ row })}
               </div>
             </div>
           ) : null
         }
-      </React.Fragment>
+      </>
     );
   };
 
-  const [ExpandedRow, setExpandedRow] = useState(0);
   useEffect(() => {
     console.log('열(row) 체크 ', rows);
+    console.log('펼쳐보기?? ', expanded);
     console.log('몇 개의 펼쳐보기?? ', Object.keys(expanded).length);
-    setExpandedRow(Object.keys(expanded).length);
   });
 
   return (
@@ -334,7 +334,24 @@ function Table({
           </div>
         ))}
       </div>
-      <div {...getTableBodyProps()}>
+      <div 
+        {...getTableBodyProps()} 
+        style={{ 
+          height: rows.length < 11 ? (35 * rows.length - 1) : (350 - 1),
+          width: (totalColumnsWidth + scrollbarSize),
+        }}
+      >
+        {/* <AutoSizer>
+          {({ height, width }) => (
+            <VirtualizedList
+              height={height}
+              width={parseInt(totalColumnsWidth + scrollbarWidth)}
+              rowCount={rows.length}
+              rowHeight={35}
+              rowRenderer={rowRender}
+            />
+          )}
+        </AutoSizer> */}
         {/* <VirtualizedList
           height={35 * 10}
           width={parseInt(totalColumnsWidth + scrollbarWidth)}
@@ -342,14 +359,26 @@ function Table({
           rowHeight={35}
           rowRenderer={rowRender}
         /> */}
-        <FixedSizeList
+        <AutoSizer>
+          {({ height, width}) => (
+            <VariableSizeList
+              height={height}
+              itemCount={rows.length}
+              itemSize={() => 35}
+              width={width}
+            >
+              {rowRenderer}
+            </VariableSizeList>
+          )}
+        </AutoSizer>
+        {/* <VariableSizeList
           height={35 * 10}
           itemCount={rows.length}
-          itemSize={35}
-          width={totalColumnsWidth + scrollbarWidth}
+          itemSize={getItemSize}
+          width={totalColumnsWidth + scrollbarSize}
         >
           {rowRenderer}
-        </FixedSizeList>
+        </VariableSizeList> */}
       </div>
     </div>
   );
@@ -378,9 +407,11 @@ function TestVirtualTable() {
       Header: () => null,
       id: 'expander',
       Cell: ({ row }) => (
-        <span {...row.getToggleRowExpandedProps()}>
-          {row.isExpanded ? '👇' : '👉'}
-        </span>
+        row.canExpand ? (
+          <span {...row.getToggleRowExpandedProps()}>
+            {row.isExpanded ? '👇' : '👉'}
+          </span>
+        ) : null
       ),
       width: 50,
       disableFilters: true,
@@ -426,11 +457,11 @@ function TestVirtualTable() {
     },
   ], []);
 
-  const data = useMemo(() => TestData(100), []);
+  const data = useMemo(() => TestData(100, 1), []);
 
   const renderRowSubComponent = useCallback(
     ({ row }) => (
-      <div style={{ fontSize: '12px' }}>
+      <div style={{ backgroundColor: 'lavender', margin: '0', padding: '0' }}>
         {row.values.index}번째 열이 펼쳐짐
       </div>
     ), [],

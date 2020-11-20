@@ -39,7 +39,8 @@ export default function TestData(...lens) {
       return {
         index: index,
         ...newData(),
-        subRows: lens[depth + 1] ? makeDataLevel(depth + 1) : sub,
+        // subRows: lens[depth + 1] ? makeDataLevel(depth + 1) : undefined,
+        subRows: lens[depth + 1] ? sub : undefined,
       }
     })
   };
