@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, forwardRef, createContext, memo } from 'react';
 import styled from 'styled-components';
 import {
   useTable,
@@ -7,8 +7,10 @@ import {
   useSortBy,
   useExpanded,
 } from 'react-table';
-import { VariableSizeList as List } from 'react-window';
+import { FixedSizeList, VariableSizeList } from 'react-window';
 import scrollbarWidth from './scrollbarWidth';
+import { AutoSizer, CellMeasurer, CellMeasurerCache, List as VirtualizedList } from 'react-virtualized';
+
 import TestData from './TestData';
 
 const Styles = styled.div`
@@ -43,7 +45,7 @@ const Styles = styled.div`
   }
 `;
 
-// 필터 옵션 --------------------------------------------
+// 필터 옵션 시작 --------------------------------------------
 function DefaultColumnFilter({
   column: { filterValue, preFilteredRows, setFilter },
 }) {
@@ -138,6 +140,7 @@ function NumberRangeColumnFilter({
     <div
       style={{
         display: 'flex',
+        padding: '0 13px',
       }}
     >
       <input
@@ -170,6 +173,7 @@ function NumberRangeColumnFilter({
     </div>
   );
 }
+// 필터 옵션 마침 --------------------------------------------
 
 function Table({ 
   columns,
@@ -197,6 +201,11 @@ function Table({
 
   const scrollbarSize = useMemo(() => scrollbarWidth(), []);
 
+  const cache = new CellMeasurerCache({
+    fixedWidth: true,
+    defaultHeight: 35,
+  });
+
   const {
     getTableProps,
     getTableBodyProps,
@@ -204,6 +213,7 @@ function Table({
     rows,
     totalColumnsWidth,
     prepareRow,
+    visibleColumns,
     state: {sortBy, expanded, filters},
   } = useTable({
     columns,
@@ -211,26 +221,20 @@ function Table({
     defaultColumn,
     filterTypes,
   }, useBlockLayout, useFilters, useSortBy, useExpanded);
+
+  const ListRef = useRef();
   
-  const refList = useRef();
-  
-  const [RowHeights, setRowHeights] = useState(new Array(rows.length).fill(true).reduce((acc, item, i) => {
+  const [RowHeights, setRowHeights] = useState(
+    new Array(rows.length).fill(true).reduce((acc, item, i) => {
       acc[i] = 35;
       return acc;
     }, {})
   );
-  
-  const toggleSize = (index) => {
-    if (refList.current) {
-      console.log('>>>> ', refList.current);
-      refList.current.resetAfterIndex(index);
-    }
-    RowHeights[index] === 35 ? setRowHeights(RowHeights[index] = 70) : setRowHeights(RowHeights[index] = 35);
-  };
 
   const getItemSize = index => RowHeights[index];
   
-  const RenderRow = useCallback(
+  // react-window
+  const rowRenderer = useCallback(
     ({ index, style }) => {
       const row = rows[index];
       prepareRow(row);
@@ -262,12 +266,47 @@ function Table({
     [prepareRow, rows]
   );
 
-  const [DetectRows, setDetectRows] = useState(rows.length);
+  // react-virtualized
+  const rowRender = ({key, index, isScrolling, isVisible, style}) => {
+    const row = rows[index];
+    prepareRow(row);
+    return (
+      <React.Fragment>
+        <div
+          {...row.getRowProps({ style })}
+          className='tr'
+          style={{
+            backgroundColor: 'lavender',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {row.cells.map((cell) => {
+            return (
+              <div {...cell.getCellProps()} className='td'>
+                {cell.render('Cell')}
+              </div>
+            );
+          })}
+        </div>
+        {
+          row.isExpanded ? (
+            <div role="row" className="tr expanded-row">
+              <div role="cell" className="td" colSpan={visibleColumns.length}>
+                {renderRowSubComponent({ row })}
+              </div>
+            </div>
+          ) : null
+        }
+      </React.Fragment>
+    );
+  };
 
+  const [ExpandedRow, setExpandedRow] = useState(0);
   useEffect(() => {
-    console.log('rows///////// ', rows);
-    // setDetectRows(rows.length + 1);
-  }, [rows]);
+    console.log('열(row) 체크 ', rows);
+    console.log('몇 개의 펼쳐보기?? ', Object.keys(expanded).length);
+    setExpandedRow(Object.keys(expanded).length);
+  });
 
   return (
     <div {...getTableProps()} className="table">
@@ -278,7 +317,7 @@ function Table({
               <div {...column.getHeaderProps()} className="th">
                 {column.render("Header")}
                 {column.canSort ? (
-                  <div
+                  <span
                     {...column.getSortByToggleProps()}
                     style={{ width: "20px", cursor: "pointer" }}
                   >
@@ -286,8 +325,8 @@ function Table({
                       ? column.isSortedDesc
                         ? " 🔽"
                         : " 🔼"
-                      : "GO"}
-                  </div>
+                      : " 🟦"}
+                  </span>
                 ) : null}
                 <div>{column.canFilter ? column.render("Filter") : null}</div>
               </div>
@@ -296,16 +335,21 @@ function Table({
         ))}
       </div>
       <div {...getTableBodyProps()}>
-        <List
-          // ref={refList}
-          height={35 * 10 - 1} // itemSize * 10열 - border값
-          itemCount={DetectRows}
-          itemSize={getItemSize}
-          // itemSize={35}
-          width={totalColumnsWidth + scrollbarSize}
+        {/* <VirtualizedList
+          height={35 * 10}
+          width={parseInt(totalColumnsWidth + scrollbarWidth)}
+          rowCount={rows.length}
+          rowHeight={35}
+          rowRenderer={rowRender}
+        /> */}
+        <FixedSizeList
+          height={35 * 10}
+          itemCount={rows.length}
+          itemSize={35}
+          width={totalColumnsWidth + scrollbarWidth}
         >
-          {RenderRow}
-        </List>
+          {rowRenderer}
+        </FixedSizeList>
       </div>
     </div>
   );
@@ -347,7 +391,7 @@ function TestVirtualTable() {
     {
       Header: '이름',
       accessor: 'name',
-      width: 150,
+      width: 200,
       defaultCanSort: false,
       disableSortBy: true,
     },
@@ -371,7 +415,7 @@ function TestVirtualTable() {
       Filter: SelectColumnFilter,
       filter: 'includes',
       defaultCanSort: false,
-      disableSortBy: true,
+      // disableSortBy: true,
     },
     {
       Header: '진행 정도',
@@ -382,7 +426,7 @@ function TestVirtualTable() {
     },
   ], []);
 
-  const data = useMemo(() => TestData(10), []);
+  const data = useMemo(() => TestData(100), []);
 
   const renderRowSubComponent = useCallback(
     ({ row }) => (
@@ -398,7 +442,6 @@ function TestVirtualTable() {
         columns={columns}
         data={data}
         renderRowSubComponent={renderRowSubComponent}
-        disableMultiSort
       />
     </Styles>
   );

@@ -3,6 +3,7 @@ import 'antd/dist/antd.css';
 import styled from 'styled-components';
 
 import TestVirtualTable from './TestVirtualTable';
+import VirtualizedTable from './VirtualizedTable';
 
 const Container = styled.div`
   width: 500px;
@@ -56,49 +57,41 @@ const SubMenu = styled.div`
   &:hover {
     height: 80px;
   }
-  `;
-  const Test = styled.div`
-  width: 250px;
-  height: 250px;
-  border: 1px solid gray;
-  `;
+`;
+
+const Test = styled.div`
+width: 250px;
+height: 250px;
+border: 1px solid gray;
+`;
 
 function App() {
-  useEffect(() => {
-    function horizontally(event) {
-      event = window.event || event;
-      let delta = Math.max(-1, Math.min(1, (event.wheelDelta || -event.detail)));
-      document.querySelector('#handling').scrollLeft -= (delta * 85);
-      event.preventDefault();
-    }
-    document.querySelector('#handling').addEventListener('wheel', horizontally);
-  }, []);
-
-  
+  // useEffect(() => {
+  //   function horizontally(event) {
+  //     event = window.event || event;
+  //     let delta = Math.max(-1, Math.min(1, (event.wheelDelta || -event.detail)));
+  //     document.querySelector('#handling').scrollLeft -= (delta * 85);
+  //     event.preventDefault();
+  //   }
+  //   document.querySelector('#handling').addEventListener('wheel', horizontally);
+  // }, []);
 
   return (
     <div className="App" style={{ padding: "50px"}}>
-        <TestVirtualTable />
-        <br />
-        <br />
-        <Container id="handling">
+        {/* <TestVirtualTable /> */}
+        <VirtualizedTable />
+        {/* <Container id="handling">
           Lorem ipsum dolor sit amet, consectetur adipiscing elit, 
           sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
           Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi 
           ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit 
           in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
           Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-        </Container>
-        <br />
-        <br />
+        </Container> */}
         {/* <Item className="item">Mouse Over Me</Item>
         <SubMenu className="submenu" />
         <Test /> */}
-        <br />
-        <br />
         {/* <SelectBox /> */}
-        <br />
-        <br />
     </div>
   );
 }
